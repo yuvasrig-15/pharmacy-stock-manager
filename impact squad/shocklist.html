@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImpactSquad Pharmacy Stock Manager</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c7fb8;
+            --secondary: #7fcdbb;
+            --danger: #e6550d;
+            --warning: #fd8d3c;
+            --success: #31a354;
+            --light: #f6f6f6;
+            --dark: #2c3e50;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px;
+            background: var(--dark);
+            color: white;
+            padding: 20px 0;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid #34495e;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-header h2 {
+            color: var(--secondary);
+            font-size: 1.5rem;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            margin: 5px 0;
+        }
+
+        .sidebar-menu a {
+            color: #bdc3c7;
+            text-decoration: none;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-menu a.active {
+            background: #34495e;
+            color: white;
+            border-left: 4px solid var(--secondary);
+        }
+
+        .sidebar-menu i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            background: var(--light);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: var(--dark);
+            margin-bottom: 10px;
+        }
+
+        /* Card Styles */
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-header h3 {
+            color: var(--dark);
+        }
+
+        /* Button Styles */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .medicine-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .medicine-table th,
+        .medicine-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .medicine-table th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .medicine-table th:hover {
+            background: #245d8f;
+        }
+
+        .medicine-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-expired {
+            background: #ffe6e6;
+            color: var(--danger);
+        }
+
+        .status-low {
+            background: #fff3cd;
+            color: var(--warning);
+        }
+
+        .status-ok {
+            background: #d4edda;
+            color: var(--success);
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 20px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close:hover {
+            color: var(--dark);
+        }
+
+        /* Search and Filter */
+        .search-filter {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-select {
+            min-width: 150px;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-card i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-total { color: var(--primary); }
+        .stat-expired { color: var(--danger); }
+        .stat-low { color: var(--warning); }
+        .stat-ok { color: var(--success); }
+
+        .chart-container {
+            height: 300px;
+            margin-bottom: 20px;
+        }
+
+        /* File Upload */
+        .file-upload {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover {
+            border-color: var(--primary);
+        }
+
+        .file-upload i {
+            font-size: 3rem;
+            color: #ddd;
+            margin-bottom: 15px;
+        }
+
+        /* Alert Styles */
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: var(--success);
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: var(--danger);
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            .search-filter {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>🏥 ImpactSquad Pharmacy</h2>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#" class="active" onclick="showSection('dashboard')"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li><a href="#" onclick="showSection('inventory')"><i class="fas fa-pills"></i> Inventory</a></li>
+                <li><a href="#" onclick="showSection('analytics')"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+                <li><a href="#" onclick="showSection('import')"><i class="fas fa-file-import"></i> Import Data</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="section">
+                <div class="header">
+                    <h1>Pharmacy Dashboard</h1>
+                    <p>Overview of medicine inventory and stock status</p>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-pills stat-total"></i>
+                        <div class="stat-number stat-total" id="totalMedicines">0</div>
+                        <div>Total Medicines</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-exclamation-triangle stat-expired"></i>
+                        <div class="stat-number stat-expired" id="expiredMedicines">0</div>
+                        <div>Expired</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-battery-quarter stat-low"></i>
+                        <div class="stat-number stat-low" id="lowStockMedicines">0</div>
+                        <div>Low Stock</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-check-circle stat-ok"></i>
+                        <div class="stat-number stat-ok" id="okStockMedicines">0</div>
+                        <div>In Stock</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Stock Status Distribution</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="stockChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Expiry Timeline (Next 30 Days)</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="expiryChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Inventory Section -->
+            <section id="inventory" class="section" style="display: none;">
+                <div class="header">
+                    <h1>Medicine Inventory</h1>
+                    <p>Manage your pharmacy stock efficiently</p>
+                </div>
+
+                <div class="search-filter">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Search medicines...">
+                    </div>
+                    <select id="stockFilter" class="form-control filter-select">
+                        <option value="all">All Stock</option>
+                        <option value="expired">Expired</option>
+                        <option value="low">Low Stock</option>
+                        <option value="ok">In Stock</option>
+                    </select>
+                    <select id="sortSelect" class="form-control filter-select">
+                        <option value="name">Sort by Name</option>
+                        <option value="quantity">Sort by Quantity</option>
+                        <option value="expiry">Sort by Expiry</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="openAddModal()">
+                        <i class="fas fa-plus"></i> Add Medicine
+                    </button>
+                </div>
+
+                <div id="alertContainer"></div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table class="medicine-table">
+                            <thead>
+                                <tr>
+                                    <th onclick="sortTable('name')">Medicine Name <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('quantity')">Quantity <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('expiry')">Expiry Date <i class="fas fa-sort"></i></th>
+                                    <th>Purpose</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="medicineTableBody">
+                                <!-- Dynamic content will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analytics Section -->
+            <section id="analytics" class="section" style="display: none;">
+                <div class="header">
+                    <h1>Analytics & Reports</h1>
+                    <p>Detailed insights into your pharmacy inventory</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Medicine Categories Distribution</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Stock Level Trends</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Expiry Analysis</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="expiryAnalysisChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Import Data Section -->
+            <section id="import" class="section" style="display: none;">
+                <div class="header">
+                    <h1>Import Medicine Data</h1>
+                    <p>Upload CSV files or add sample data</p>
+                </div>
+
+                <div class="card">
+                    <h3>Upload CSV File</h3>
+                    <div class="file-upload" id="fileDropZone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag & drop your CSV file here</p>
+                        <p class="text-muted">Supported format: .csv</p>
+                        <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-file-upload"></i> Choose File
+                        </button>
+                    </div>
+                    <div id="uploadAlert"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Add Sample Data</h3>
+                    <p>Load sample medicine data to test the dashboard</p>
+                    <button class="btn btn-success" onclick="loadSampleData()">
+                        <i class="fas fa-download"></i> Load Sample Data
+                    </button>
+                    <div id="sampleAlert"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Data Format Requirements</h3>
+                    <p>Your CSV file should contain these columns:</p>
+                    <ul>
+                        <li><strong>Name</strong>: Medicine name (required)</li>
+                        <li><strong>Quantity</strong>: Stock quantity (number, required)</li>
+                        <li><strong>Expiry Date</strong>: Format YYYY-MM-DD (required)</li>
+                        <li><strong>Purpose</strong>: Medical purpose/category</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add/Edit Medicine Modal -->
+    <div id="medicineModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modalTitle">Add New Medicine</h3>
+            <form id="medicineForm">
+                <div class="form-group">
+                    <label for="medicineName">Medicine Name *</label>
+                    <input type="text" id="medicineName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="medicineQuantity">Quantity *</label>
+                    <input type="number" id="medicineQuantity" class="form-control" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="medicineExpiry">Expiry Date *</label>
+                    <input type="date" id="medicineExpiry" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="medicinePurpose">Purpose/Category</label>
+                    <input type="text" id="medicinePurpose" class="form-control" placeholder="e.g., Pain Relief, Antibiotic">
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <i class="fas fa-save"></i> Save Medicine
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Initialize medicines array
+        let medicines = [];
+        let currentSort = { column: 'name', direction: 'asc' };
+        let editId = null;
+        let stockChart = null;
+        let expiryChart = null;
+        let categoryChart = null;
+        let trendChart = null;
+        let expiryAnalysisChart = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load data from localStorage if available
+            loadFromStorage();
+            
+            // Initialize UI components
+            renderTable();
+            updateDashboard();
+            initializeCharts();
+            setupEventListeners();
+        });
+
+        // Load data from localStorage
+        function loadFromStorage() {
+            const storedData = localStorage.getItem('pharmacyMedicines');
+            if (storedData) {
+                medicines = JSON.parse(storedData);
+            }
+        }
+
+        // Save data to localStorage
+        function saveToStorage() {
+            localStorage.setItem('pharmacyMedicines', JSON.stringify(medicines));
+        }
+
+        // Navigation
+        function showSection(sectionName) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.display = 'none';
+            });
+            document.getElementById(sectionName).style.display = 'block';
+            
+            // Update active menu
+            document.querySelectorAll('.sidebar-menu a').forEach(link => {
+                link.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Refresh charts when switching to analytics
+            if (sectionName === 'analytics') {
+                setTimeout(initializeCharts, 100);
+            }
+        }
+
+        // Table rendering and management
+        function renderTable(filteredMedicines = null) {
+            const tbody = document.getElementById('medicineTableBody');
+            const data = filteredMedicines || medicines;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px;">
+                            <i class="fas fa-pills" style="font-size: 3rem; color: #ddd; margin-bottom: 15px; display: block;"></i>
+                            <p>No medicines found. Add some medicines or import data to get started.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = data.map(medicine => {
+                const status = getStockStatus(medicine);
+                return `
+                    <tr class="fade-in">
+                        <td>${medicine.name}</td>
+                        <td>${medicine.quantity}</td>
+                        <td>${formatDate(medicine.expiry)}</td>
+                        <td>${medicine.purpose}</td>
+                        <td><span class="status-badge status-${status}">${getStatusText(status)}</span></td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="openEditModal(${medicine.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteMedicine(${medicine.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function getStockStatus(medicine) {
+            const today = new Date();
+            const expiryDate = new Date(medicine.expiry);
+            
+            if (expiryDate < today) return 'expired';
+            if (medicine.quantity <= 10) return 'low';
+            return 'ok';
+        }
+
+        function getStatusText(status) {
+            const statusMap = { expired: 'Expired', low: 'Low Stock', ok: 'In Stock' };
+            return statusMap[status];
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        // Search and Filter functionality
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', filterTable);
+            document.getElementById('stockFilter').addEventListener('change', filterTable);
+            document.getElementById('sortSelect').addEventListener('change', (e) => sortTable(e.target.value));
+            document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+            
+            // Drag and drop for file upload
+            const dropZone = document.getElementById('fileDropZone');
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = 'var(--primary)';
+                dropZone.style.background = '#f8f9fa';
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.borderColor = '#ddd';
+                dropZone.style.background = 'white';
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = '#ddd';
+                dropZone.style.background = 'white';
+                const files = e.dataTransfer.files;
+                if (files.length) {
+                    handleFiles(files[0]);
+                }
+            });
+        }
+
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const stockFilter = document.getElementById('stockFilter').value;
+            
+            let filtered = medicines.filter(medicine => {
+                const matchesSearch = medicine.name.toLowerCase().includes(searchTerm) || 
+                                    medicine.purpose.toLowerCase().includes(searchTerm);
+                const matchesStock = stockFilter === 'all' || getStockStatus(medicine) === stockFilter;
+                return matchesSearch && matchesStock;
+            });
+            
+            renderTable(filtered);
+        }
+
+        function sortTable(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            
+            medicines.sort((a, b) => {
+                let aVal = a[column];
+                let bVal = b[column];
+                
+                if (column === 'expiry') {
+                    aVal = new Date(aVal);
+                    bVal = new Date(bVal);
+                }
+                
+                if (column === 'name') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+                
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            renderTable();
+            saveToStorage();
+        }
+
+        // Modal functions
+        function openAddModal() {
+            editId = null;
+            document.getElementById('modalTitle').textContent = 'Add New Medicine';
+            document.getElementById('medicineForm').reset();
+            document.getElementById('medicineModal').style.display = 'block';
+        }
+
+        function openEditModal(id) {
+            const medicine = medicines.find(m => m.id === id);
+            if (medicine) {
+                editId = id;
+                document.getElementById('modalTitle').textContent = 'Edit Medicine';
+                document.getElementById('medicineName').value = medicine.name;
+                document.getElementById('medicineQuantity').value = medicine.quantity;
+                document.getElementById('medicineExpiry').value = medicine.expiry;
+                document.getElementById('medicinePurpose').value = medicine.purpose;
+                document.getElementById('medicineModal').style.display = 'block';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('medicineModal').style.display = 'none';
+        }
+
+        // Form handling
+        document.getElementById('medicineForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const medicineData = {
+                name: document.getElementById('medicineName').value,
+                quantity: parseInt(document.getElementById('medicineQuantity').value),
+                expiry: document.getElementById('medicineExpiry').value,
+                purpose: document.getElementById('medicinePurpose').value || 'General'
+            };
+            
+            if (editId) {
+                // Update existing medicine
+                const index = medicines.findIndex(m => m.id === editId);
+                medicines[index] = { ...medicines[index], ...medicineData };
+                showAlert('Medicine updated successfully!', 'success');
+            } else {
+                // Add new medicine
+                const newId = medicines.length > 0 ? Math.max(...medicines.map(m => m.id)) + 1 : 1;
+                medicines.push({ id: newId, ...medicineData });
+                showAlert('Medicine added successfully!', 'success');
+            }
+            
+            closeModal();
+            renderTable();
+            updateDashboard();
+            initializeCharts();
+            saveToStorage();
+        });
+
+        function deleteMedicine(id) {
+            if (confirm('Are you sure you want to delete this medicine?')) {
+                medicines = medicines.filter(m => m.id !== id);
+                renderTable();
+                updateDashboard();
+                initializeCharts();
+                saveToStorage();
+                showAlert('Medicine deleted successfully!', 'success');
+            }
+        }
+
+        // File upload functionality
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            handleFiles(file);
+        }
+
+        function handleFiles(file) {
+            if (!file) return;
+            
+            const alertContainer = document.getElementById('uploadAlert');
+            
+            if (!file.name.endsWith('.csv')) {
+                showAlert('Please upload a CSV file.', 'danger', 'uploadAlert');
+                return;
+            }
+            
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    try {
+                        const newMedicines = results.data;
+                        
+                        if (validateMedicineData(newMedicines)) {
+                            const newIds = medicines.length > 0 ? Math.max(...medicines.map(m => m.id)) : 0;
+                            newMedicines.forEach((medicine, index) => {
+                                medicines.push({
+                                    id: newIds + index + 1,
+                                    name: medicine.Name,
+                                    quantity: parseInt(medicine.Quantity),
+                                    expiry: medicine['Expiry Date'],
+                                    purpose: medicine.Purpose || 'General'
+                                });
+                            });
+                            
+                            renderTable();
+                            updateDashboard();
+                            initializeCharts();
+                            saveToStorage();
+                            showAlert(`Successfully imported ${newMedicines.length} medicines!`, 'success', 'uploadAlert');
+                        }
+                    } catch (error) {
+                        showAlert('Error parsing file: ' + error.message, 'danger', 'uploadAlert');
+                    }
+                },
+                error: function(error) {
+                    showAlert('Error reading file: ' + error.message, 'danger', 'uploadAlert');
+                }
+            });
+        }
+
+        function validateMedicineData(data) {
+            if (!data || data.length === 0) {
+                throw new Error('File is empty or contains no data');
+            }
+            
+            for (let medicine of data) {
+                if (!medicine.Name || !medicine.Quantity || !medicine['Expiry Date']) {
+                    throw new Error('Invalid data: Missing required fields');
+                }
+                if (isNaN(medicine.Quantity) || parseInt(medicine.Quantity) < 0) {
+                    throw new Error('Invalid quantity value');
+                }
+                if (!isValidDate(medicine['Expiry Date'])) {
+                    throw new Error('Invalid date format. Use YYYY-MM-DD');
+                }
+            }
+            return true;
+        }
+
+        function isValidDate(dateString) {
+            const regex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!regex.test(dateString)) return false;
+            const date = new Date(dateString);
+            return date instanceof Date && !isNaN(date);
+        }
+
+        // Sample data loading
+        function loadSampleData() {
+            const sampleData = [
+                { id: 1, name: "Paracetamol", quantity: 150, expiry: "2024-12-31", purpose: "Pain Relief" },
+                { id: 2, name: "Amoxicillin", quantity: 45, expiry: "2024-06-30", purpose: "Antibiotic" },
+                { id: 3, name: "Ibuprofen", quantity: 8, expiry: "2023-12-15", purpose: "Pain Relief" },
+                { id: 4, name: "Vitamin C", quantity: 200, expiry: "2025-03-20", purpose: "Supplement" },
+                { id: 5, name: "Aspirin", quantity: 75, expiry: "2024-08-15", purpose: "Pain Relief" },
+                { id: 6, name: "Metformin", quantity: 120, expiry: "2025-01-15", purpose: "Diabetes" },
+                { id: 7, name: "Lisinopril", quantity: 85, expiry: "2024-11-30", purpose: "Blood Pressure" },
+                { id: 8, name: "Atorvastatin", quantity: 95, expiry: "2025-03-20", purpose: "Cholesterol" },
+                { id: 9, name: "Levothyroxine", quantity: 6, expiry: "2024-09-15", purpose: "Thyroid" },
+                { id: 10, name: "Amlodipine", quantity: 110, expiry: "2025-02-28", purpose: "Blood Pressure" }
+            ];
+            
+            medicines = sampleData;
+            renderTable();
+            updateDashboard();
+            initializeCharts();
+            saveToStorage();
+            showAlert('Sample data loaded successfully!', 'success', 'sampleAlert');
+        }
+
+        // Dashboard and charts
+        function updateDashboard() {
+            const total = medicines.length;
+            const expired = medicines.filter(m => getStockStatus(m) === 'expired').length;
+            const lowStock = medicines.filter(m => getStockStatus(m) === 'low').length;
+            const okStock = medicines.filter(m => getStockStatus(m) === 'ok').length;
+            
+            document.getElementById('totalMedicines').textContent = total;
+            document.getElementById('expiredMedicines').textContent = expired;
+            document.getElementById('lowStockMedicines').textContent = lowStock;
+            document.getElementById('okStockMedicines').textContent = okStock;
+        }
+
+        function initializeCharts() {
+            updateDashboard();
+            createStockChart();
+            createExpiryChart();
+            createCategoryChart();
+            createTrendChart();
+            createExpiryAnalysisChart();
+        }
+
+        function createStockChart() {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (stockChart) {
+                stockChart.destroy();
+            }
+            
+            const statusCounts = {
+                expired: medicines.filter(m => getStockStatus(m) === 'expired').length,
+                low: medicines.filter(m => getStockStatus(m) === 'low').length,
+                ok: medicines.filter(m => getStockStatus(m) === 'ok').length
+            };
+            
+            stockChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Expired', 'Low Stock', 'In Stock'],
+                    datasets: [{
+                        data: [statusCounts.expired, statusCounts.low, statusCounts.ok],
+                        backgroundColor: ['#e6550d', '#fd8d3c', '#31a354'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Stock Status Distribution'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createExpiryChart() {
+            const ctx = document.getElementById('expiryChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (expiryChart) {
+                expiryChart.destroy();
+            }
+            
+            const today = new Date();
+            const next30Days = new Date();
+            next30Days.setDate(today.getDate() + 30);
+            
+            const expiringSoon = medicines.filter(medicine => {
+                const expiry = new Date(medicine.expiry);
+                return expiry > today && expiry <= next30Days;
+            }).sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+            
+            const labels = expiringSoon.map(m => m.name);
+            const data = expiringSoon.map(m => Math.ceil((new Date(m.expiry) - today) / (1000 * 60 * 60 * 24)));
+            const backgroundColors = expiringSoon.map(m => {
+                const days = Math.ceil((new Date(m.expiry) - today) / (1000 * 60 * 60 * 24));
+                return days <= 7 ? '#e6550d' : days <= 15 ? '#fd8d3c' : '#31a354';
+            });
+            
+            expiryChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Days Until Expiry',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Medicines Expiring in Next 30 Days'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Days Remaining'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Medicine Name'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createCategoryChart() {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (categoryChart) {
+                categoryChart.destroy();
+            }
+            
+            // Group by purpose/category
+            const categories = {};
+            medicines.forEach(medicine => {
+                const category = medicine.purpose || 'General';
+                if (!categories[category]) {
+                    categories[category] = 0;
+                }
+                categories[category]++;
+            });
+            
+            const labels = Object.keys(categories);
+            const data = Object.values(categories);
+            
+            // Generate colors
+            const backgroundColors = [
+                '#2c7fb8', '#7fcdbb', '#edf8b1', '#2ca25f', 
+                '#f03b20', '#ffeda0', '#feb24c', '#bd0026'
+            ];
+            
+            categoryChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: backgroundColors.slice(0, labels.length),
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Medicines by Category'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createTrendChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (trendChart) {
+                trendChart.destroy();
+            }
+            
+            // For demonstration, we'll show quantity distribution
+            const quantityRanges = {
+                '0-10': medicines.filter(m => m.quantity <= 10).length,
+                '11-50': medicines.filter(m => m.quantity > 10 && m.quantity <= 50).length,
+                '51-100': medicines.filter(m => m.quantity > 50 && m.quantity <= 100).length,
+                '101+': medicines.filter(m => m.quantity > 100).length
+            };
+            
+            trendChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(quantityRanges),
+                    datasets: [{
+                        label: 'Number of Medicines',
+                        data: Object.values(quantityRanges),
+                        backgroundColor: '#2c7fb8',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Stock Quantity Distribution'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Medicines'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Quantity Range'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createExpiryAnalysisChart() {
+            const ctx = document.getElementById('expiryAnalysisChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (expiryAnalysisChart) {
+                expiryAnalysisChart.destroy();
+            }
+            
+            const today = new Date();
+            const next30Days = new Date();
+            next30Days.setDate(today.getDate() + 30);
+            const next90Days = new Date();
+            next90Days.setDate(today.getDate() + 90);
+            const nextYear = new Date();
+            nextYear.setFullYear(today.getFullYear() + 1);
+            
+            const expiryAnalysis = {
+                'Expired': medicines.filter(m => new Date(m.expiry) < today).length,
+                'Within 30 days': medicines.filter(m => {
+                    const expiry = new Date(m.expiry);
+                    return expiry >= today && expiry <= next30Days;
+                }).length,
+                '31-90 days': medicines.filter(m => {
+                    const expiry = new Date(m.expiry);
+                    return expiry > next30Days && expiry <= next90Days;
+                }).length,
+                '91-365 days': medicines.filter(m => {
+                    const expiry = new Date(m.expiry);
+                    return expiry > next90Days && expiry <= nextYear;
+                }).length,
+                'Over 1 year': medicines.filter(m => new Date(m.expiry) > nextYear).length
+            };
+            
+            expiryAnalysisChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(expiryAnalysis),
+                    datasets: [{
+                        label: 'Number of Medicines',
+                        data: Object.values(expiryAnalysis),
+                        backgroundColor: ['#e6550d', '#fd8d3c', '#fed976', '#c7e9c0', '#41ab5d'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Expiry Date Analysis'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Medicines'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Expiry Timeframe'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Utility functions
+        function showAlert(message, type, containerId = 'alertContainer') {
+            const container = document.getElementById(containerId);
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} fade-in`;
+            alert.innerHTML = `
+                <span>${message}</span>
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()" style="float: right; background: none; border: none; font-size: 1.2rem;">&times;</button>
+            `;
+            container.innerHTML = '';
+            container.appendChild(alert);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alert.parentElement) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('medicineModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
